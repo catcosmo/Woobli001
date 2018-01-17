@@ -342,7 +342,7 @@ void moveEndgegner(){
 void spawnGegner(int position, int richtung, int speed, int schleife){
     for(int e = 0; e<gegnerAnzahl; e++){
         if(!gegnerGang[e].Aktiv()){
-            gegnerGang[e].Spawn(position, richtung, speed, schleife);
+            gegnerGang[e].Spawn(position, richtung, speed, schleife, 1);
             gegnerGang[e].spielerSeite = position > spielerPosition?1:-1;
             return;
         }
