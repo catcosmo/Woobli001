@@ -36,6 +36,8 @@ long lastInputTime = 0;
 #define LEVEL_ANZAHL          9
 #define LAUTSTAERKE_MAX           10
 iSin isin = iSin();
+const int groessenAenderung = 10;
+int tick = 0;
 
 // Joystick
 #define JOYSTICK_ORIENTIERUNG 1     // [0,1,2] legt die Orientierung des Joysticks fest (in welche Richtung Steuern, in welche Wackeln)
@@ -78,8 +80,8 @@ Spawner spawnGang[2] = {
     Spawner(), Spawner()
 };
 int const spawnAnzahl = 2;
-Lava feuerGang[4] = {
-    Lava(), Lava(), Lava(), Lava()
+Feuer feuerGang[4] = {
+    Feuer(), Feuer(), Feuer(), Feuer()
 };
 int const feuerAnzahl = 4;
 Wasser WasserGang[2] = {
@@ -119,13 +121,13 @@ void loop() {
     int brightness = 0;
 
     if(status == "PLAY"){
-        if(attacking){
-            Tonattacking();
+        if(angreifend){
+            SFXangreifend();
         }else{
-            Tontilt(joystickNeigung);
+            SFXtilt(joystickNeigung);
         }
     }else if(status == "DEAD"){
-        Tondead();
+        SFXdead();
     }
 
     if (mm - msLetzterFrame >= MIN_FRAME_INTERVAL) {
@@ -149,17 +151,17 @@ void loop() {
             screenSaverTick();
         }else if(status == "PLAY"){
             // PLAYING
-            if(attacking && angriffStartzeit+ANGRIFF_DAUER < mm) attacking = 0;
+            if(angreifend && angriffStartzeit+ANGRIFF_DAUER < mm) angreifend = 0;
 
-            // If not attacking, check if they should be
-            if(!attacking && joystickWackelSpeed > ANGRIFF_THRESHOLD){
+            // If not angreifend, check if they should be
+            if(!angreifend && joystickWackelSpeed > ANGRIFF_THRESHOLD){
                 angriffStartzeit = mm;
-                attacking = 1;
+                angreifend = 1;
             }
 
-            // If still not attacking, move!
+            // If still not angreifend, move!
             spielerPosition += spielerPositionAnpassen;
-            if(!attacking){
+            if(!angreifend){
                 int moveAmount = (joystickNeigung/6.0);
                 if(RICHTUNG) moveAmount = -moveAmount;
                 moveAmount = constrain(moveAmount, -SPIELER_MAX_SPEED, SPIELER_MAX_SPEED);
@@ -172,7 +174,7 @@ void loop() {
                 }
             }
 
-            if(inLava(spielerPosition)){
+            if(inFeuer(spielerPosition)){
                 die();
             }
 
@@ -181,9 +183,9 @@ void loop() {
             tickWassers();
             tickSpawners();
             tickEndgegner();
-            tickLava();
-            tickEnemies();
-            drawPlayer();
+            tickFeuer();
+            tickGegner();
+            drawSpieler();
             drawAttack();
             drawExit();
         }else if(status == "DEAD"){
@@ -200,14 +202,14 @@ void loop() {
                 for(int i = LED_NUM; i>= n; i--){
                     leds[i] = CRGB::Gold;
                 }
-                Tonwin();
+                SFXwin();
             }else if(statusStartZeit+1000 > mm){
                 int n = max(map(((mm-statusStartZeit)), 500, 1000, LED_NUM, 0), 0);
                 for(int i = 0; i< n; i++){
                     brightness = 255;
                     leds[i] = CRGB::Gold;
                 }
-                Tonwin();
+                SFXwin();
             }else if(statusStartZeit+1200 > mm){
                 leds[0] = CRGB(0, 255, 0);
             }else{
@@ -215,7 +217,7 @@ void loop() {
             }
         }else if(status == "COMPLETE"){
             FastLED.clear();
-            Toncomplete();
+            SFXcomplete();
             if(statusStartZeit+500 > mm){
                 int n = max(map(((mm-statusStartZeit)), 0, 500, LED_NUM, 0), 0);
                 for(int i = LED_NUM; i>= n; i--){
@@ -274,8 +276,8 @@ void loadLevel(){
             spawnGang[0].Spawn(1000, 3000, 2, 0, 0);
             break;
         case 3:
-            // Lava intro
-            spawnLava(400, 490, 2000, 2000, 0, "OFF");
+            // Feuer intro
+            spawnFeuer(400, 490, 2000, 2000, 0, "OFF");
             spawnGang[0].Spawn(1000, 5500, 3, 0, 0);
             break;
         case 4:
@@ -300,11 +302,11 @@ void loadLevel(){
             spawnGegner(900, 0, 0, 0);
             break;
         case 7:
-            // Lava run
-            spawnLava(195, 300, 2000, 2000, 0, "OFF");
-            spawnLava(350, 455, 2000, 2000, 0, "OFF");
-            spawnLava(510, 610, 2000, 2000, 0, "OFF");
-            spawnLava(660, 760, 2000, 2000, 0, "OFF");
+            // Feuer run
+            spawnFeuer(195, 300, 2000, 2000, 0, "OFF");
+            spawnFeuer(350, 455, 2000, 2000, 0, "OFF");
+            spawnFeuer(510, 610, 2000, 2000, 0, "OFF");
+            spawnFeuer(660, 760, 2000, 2000, 0, "OFF");
             spawnGang[0].Spawn(1000, 3800, 4, 0, 0);
             break;
         case 8:
@@ -347,7 +349,7 @@ void spawnGegner(int position, int richtung, int speed, int schleife){
     }
 }
 
-void spawnLava(int left, int right, int ontime, int offtime, int offset, char* state){
+void spawnFeuer(int left, int right, int ontime, int offtime, int offset, char* state){
     for(int i = 0; i<feuerAnzahl; i++){
         if(!feuerGang[i].Aktiv()){
             feuerGang[i].Spawn(left, right, ontime, offtime, offset, state);
@@ -422,7 +424,7 @@ void die(){
 // ----------------------------------
 // -------- TICKS & RENDERS ---------
 // ----------------------------------
-void tickEnemies(){
+void tickGegner(){
     for(int i = 0; i<gegnerAnzahl; i++){
         if(gegnerGang[i].Aktiv()){
             gegnerGang[i].Tick();
@@ -430,21 +432,31 @@ void tickEnemies(){
             if(attacking){
                 if(gegnerGang[i]._position > spielerPosition-(ANGRIFF_GROESSE/2) && gegnerGang[i]._position < spielerPosition+(ANGRIFF_GROESSE/2)){
                    gegnerGang[i].Kill();
-                   Tonkill();
+                   SFXkill();
                 }
             }
             if(inLava(gegnerGang[i]._position)){
                 gegnerGang[i].Kill();
-                Tonkill();
+                SFXkill();
             }
             // Draw (if still aktiv)
             if(gegnerGang[i].Aktiv()) {
                 leds[getLED(gegnerGang[i]._position)] = CRGB(0, 255, 0);
+                if((tick / 10 ) % 2 == 0) {
+                    for(int i = 0; i < gegnerGang[i]._groesse;i++) {
+                        leds[getLED(gegnerGang[i]._position+i)] = CRGB(0, 255, 0);
+                        leds[getLED(gegnerGang[i]._position-i)] = CRGB(0, 255, 0);
+                        gegnerGang[i]._gross = true;
+                    }
+                } else
+                    gegnerGang[i]._gross = false;
+
             }
             // Hit spieler?
             if(
-                (gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition) ||
-                (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition)
+                ((gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition) ||
+                (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition)) || (gegnerGang[i]_gross == true &&((gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition-1) ||
+                (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition+1)))
             ){
                 die();
                 return;
@@ -467,7 +479,7 @@ void tickEndgegner(){
             return;
         }
         // CHECK FOR ATTACK
-        if(attacking){
+        if(angreifend){
             if(
               (getLED(spielerPosition+(ANGRIFF_GROESSE/2)) >= getLED(endgegner._position - EG_GROESSE/2) && getLED(spielerPosition+(ANGRIFF_GROESSE/2)) <= getLED(endgegner._position + EG_GROESSE/2)) ||
               (getLED(spielerPosition-(ANGRIFF_GROESSE/2)) <= getLED(endgegner._position + EG_GROESSE/2) && getLED(spielerPosition-(ANGRIFF_GROESSE/2)) >= getLED(endgegner._position - EG_GROESSE/2))
@@ -484,7 +496,7 @@ void tickEndgegner(){
     }
 }
 
-void drawPlayer(){
+void drawSpieler(){
     leds[getLED(spielerPosition)] = CRGB::Gold;
 }
 
@@ -506,10 +518,10 @@ void tickSpawners(){
     }
 }
 
-void tickLava(){
+void tickFeuer(){
     int A, B, p, i, brightness, flicker;
     long mm = millis();
-    Lava LP;
+    Feuer LP;
     for(i = 0; i<feuerAnzahl; i++){
         flicker = random8(5);
         LP = feuerGang[i];
@@ -580,7 +592,7 @@ void tickWassers(){
 }
 
 void drawAttack(){
-    if(!attacking) return;
+    if(!angreifend) return;
     int n = map(millis() - angriffStartzeit, 0, ANGRIFF_DAUER, 100, 5);
     for(int i = getLED(spielerPosition-(ANGRIFF_GROESSE/2))+1; i<=getLED(spielerPosition+(ANGRIFF_GROESSE/2))-1; i++){
         leds[i] = CRGB(0, 0, n);
@@ -601,10 +613,10 @@ int getLED(int position){
     return constrain((int)map(position, 0, 1000, 0, LED_NUM-1), 0, LED_NUM-1);
 }
 
-bool inLava(int position){
+bool inFeuer(int position){
     // Returns if the spieler is in active feuer
     int i;
-    Lava LP;
+    Feuer LP;
     for(i = 0; i<feuerAnzahl; i++){
         LP = feuerGang[i];
         if(LP.Aktiv() && LP._state == "ON"){
@@ -658,7 +670,7 @@ void screenSaverTick(){
 // ----------- JOYSTICK ------------
 // ---------------------------------
 void getInput(){
-    // This is respeedonsible for the spieler movement speedeed and attacking.
+    // This is respeedonsible for the spieler movement speedeed and angreifend.
     // You can replace it with anything you want that passes a -90>+90 value to joystickNeigung
     // and any value to joystickWackelSpeed that is greater than ANGRIFF_THRESHOLD (defined at start)
     // For example you could use 3 momentery buttons:
@@ -686,36 +698,36 @@ void getInput(){
 // ---------------------------------
 // -------------- TON --------------
 // ---------------------------------
-void Tontilt(int amount){
+void SFXtilt(int amount){
     int f = map(abs(amount), 0, 90, 80, 900)+random8(100);
     if(spielerPositionAnpassen < 0) f -= 500;
     if(spielerPositionAnpassen > 0) f += 200;
     toneAC(f, min(min(abs(amount)/9, 5), LAUTSTAERKE_MAX));
 
 }
-void Tonattacking(){
+void SFXangreifend(){
     int freq = map(sin(millis()/2.0)*1000.0, -1000, 1000, 500, 600);
     if(random8(5)== 0){
       freq *= 3;
     }
     toneAC(freq, LAUTSTAERKE_MAX);
 }
-void Tondead(){
+void SFXdead(){
     int freq = max(1000 - (millis()-todeszeitpunkt), 10);
     freq += random8(200);
     int vol = max(10 - (millis()-todeszeitpunkt)/200, 0);
     toneAC(freq, LAUTSTAERKE_MAX);
 }
-void Tonkill(){
+void SFXkill(){
     toneAC(2000, LAUTSTAERKE_MAX, 1000, true);
 }
-void Tonwin(){
+void SFXwin(){
     int freq = (millis()-statusStartZeit)/3.0;
     freq += map(sin(millis()/20.0)*1000.0, -1000, 1000, 0, 20);
     int vol = 10;//max(10 - (millis()-statusStartZeit)/200, 0);
     toneAC(freq, LAUTSTAERKE_MAX);
 }
 
-void Toncomplete(){
+void SFXcomplete(){
     noToneAC();
 }
