@@ -3,13 +3,15 @@
 class Gegner
 {
   public:
-    void Spawn(int position, int richtung, int speed, int schleife);
+    void Spawn(int position, int richtung, int speed, int schleife, int groesse);
     void Tick();
     void Kill();
     bool Aktiv();
     int _position;
     int _schleife;    //größe einer Schleife in der sich der Gegner hin und her bewegt - 0 = Gegner bleibt Punkt
     int spielerSeite; //auf welcher Seite vom Gegner befindet sich der Spieler
+    int _groesse;
+    bool _gross = false;
   private:
     int _richtung;
     int _speed;
@@ -17,13 +19,14 @@ class Gegner
     int _startPos;
 };
 
-void Gegner::Spawn(int position, int richtung, int speed, int schleife){
+void Gegner::Spawn(int position, int richtung, int speed, int schleife, int groesse){
     _position = position;
     _richtung = richtung;               // 0 = unten, 1 = oben
     _schleife = schleife;               // 0 = keine bewegung, >0 = yes, value is width of schleife
     _startPos = position;
     _speed = speed;
     _aktiv = 1;
+    _groesse = groesse;
 }
 
 void Gegner::Tick(){
