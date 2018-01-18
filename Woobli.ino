@@ -119,6 +119,7 @@ void setup() {
 void loop() {
     long mm = millis();
     int brightness = 0;
+    tick++;
 
     if(status == "PLAY"){
         if(angreifend){
@@ -429,33 +430,34 @@ void tickGegner(){
         if(gegnerGang[i].Aktiv()){
             gegnerGang[i].Tick();
             // Hit attack?
-            if(attacking){
+            if(angreifend){
                 if(gegnerGang[i]._position > spielerPosition-(ANGRIFF_GROESSE/2) && gegnerGang[i]._position < spielerPosition+(ANGRIFF_GROESSE/2)){
                    gegnerGang[i].Kill();
                    SFXkill();
                 }
             }
-            if(inLava(gegnerGang[i]._position)){
+            if(inFeuer(gegnerGang[i]._position)){
                 gegnerGang[i].Kill();
                 SFXkill();
             }
             // Draw (if still aktiv)
             if(gegnerGang[i].Aktiv()) {
                 leds[getLED(gegnerGang[i]._position)] = CRGB(0, 255, 0);
-                if((tick / 10 ) % 2 == 0) {
-                    for(int i = 0; i < gegnerGang[i]._groesse;i++) {
-                        leds[getLED(gegnerGang[i]._position+i)] = CRGB(0, 255, 0);
-                        leds[getLED(gegnerGang[i]._position-i)] = CRGB(0, 255, 0);
+                if((tick / 10000 ) % 2 == 0) {
+                    for(int j = 0; j <= gegnerGang[i]._groesse;j++) {
+                        leds[getLED(gegnerGang[i]._position+j*10)] = CRGB(0, 255, 0);
+                        leds[getLED(gegnerGang[i]._position-j*10)] = CRGB(0, 255, 0);
                         gegnerGang[i]._gross = true;
                     }
                 } else
                     gegnerGang[i]._gross = false;
+                    Serial.println(gegnerGang[i]._position);
 
             }
             // Hit spieler?
             if(
                 ((gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition) ||
-                (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition)) || (gegnerGang[i]_gross == true &&((gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition-1) ||
+                (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition)) || (gegnerGang[i]._gross == true &&((gegnerGang[i].spielerSeite == 1 && gegnerGang[i]._position <= spielerPosition-1) ||
                 (gegnerGang[i].spielerSeite == -1 && gegnerGang[i]._position >= spielerPosition+1)))
             ){
                 die();
