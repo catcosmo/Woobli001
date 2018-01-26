@@ -67,7 +67,7 @@ long todeszeitpunkt;
 int leben = 3;
 
 // Gangs
-int lebensAnzeigeLEDs[3] = {52, 50, 40};
+int lebensAnzeigeLEDs[3] = {8, 9, 10};
 Gegner gegnerGang[10] = {
     Gegner(), Gegner(), Gegner(), Gegner(), Gegner(), Gegner(), Gegner(), Gegner(), Gegner(), Gegner()
 };
@@ -108,7 +108,7 @@ void setup() {
     FastLED.setDither(1);
 
     // Life LEDs
-    for(int i = 0; i<3; i++){
+    for(int i = 0; i<=3; i++){
         pinMode(lebensAnzeigeLEDs[i], OUTPUT);
         digitalWrite(lebensAnzeigeLEDs[i], HIGH);
     }
